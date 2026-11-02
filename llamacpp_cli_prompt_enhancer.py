@@ -70,7 +70,7 @@ class LlamaCppCLIEnhancer:
                 "mode": (["completion (Manual ChatML)", "chat (--jinja, single-turn)"],),
                 "thinking": ("BOOLEAN", {"default": False}),
                 "max_tokens": ("INT", {"default": 400, "min": 16, "max": 8192}),
-                "n_ctx": ("INT", {"default": 4096, "min": 512, "max": 131072}),
+                "n_ctx": ("INT", {"default": 16384, "min": 512, "max": 131072}),
                 "n_gpu_layers": ("INT", {"default": 99, "min": -1, "max": 999}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05}),
                 "top_k": ("INT", {"default": 20, "min": 0, "max": 1000}),

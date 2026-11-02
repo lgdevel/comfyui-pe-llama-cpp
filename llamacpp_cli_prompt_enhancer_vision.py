@@ -18,12 +18,11 @@ import time
 import numpy as np
 from PIL import Image
 
-DEFAULT_MODEL_VISION = r"path/to/your/pottokao/Qwen-Image-2.1-PE-I2I-Heretic-GGUF/pe_i2i_heretic-Q4_K_M.gguf"
-
 from .llamacpp_cli_prompt_enhancer import (
-    DEFAULT_EXE, DEFAULT_MODEL_VISION, _build_env, _clean_chat_output,
+    DEFAULT_EXE, _build_env, _clean_chat_output, _fmt_cmd,
 )
 
+DEFAULT_MODEL_VISION = r"path/to/your/pottokao/Qwen-Image-2.1-PE-I2I-Heretic-GGUF/pe_i2i_heretic-Q4_K_M.gguf"
 
 def _find_mmproj(model_path):
     """Look for an *mmproj*.gguf file in the model folder."""
@@ -53,7 +52,7 @@ class LlamaCppCLIEnhancerVision:
                 "system_mode": (["added to prompt", "flag -sysf"],),
                 "thinking": ("BOOLEAN", {"default": False}),
                 "max_tokens": ("INT", {"default": 600, "min": 16, "max": 16384}),
-                "n_ctx": ("INT", {"default": 8192, "min": 512, "max": 131072}),
+                "n_ctx": ("INT", {"default": 32768, "min": 512, "max": 131072}),
                 "max_image_side": ("INT", {"default": 1024, "min": 0, "max": 4096}),
                 "n_gpu_layers": ("INT", {"default": 99, "min": -1, "max": 999}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05}),
