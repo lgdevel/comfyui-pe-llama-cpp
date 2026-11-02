@@ -66,7 +66,7 @@ class LlamaCppCLIEnhancerVision:
                 "timeout_s": ("INT", {"default": 900, "min": 10, "max": 7200}),
             },
             "optional": {
-                "subcommand": ("STRING", {"default": "cli"}),
+                "subcommand": ("STRING", {"default": "auto"}),
                 "extra_args": ("STRING", {"default": "", "multiline": False}),
                 "oneapi_setvars": ("STRING", {"default": ""}),
                 "bypass": ("BOOLEAN", {"default": False}),
@@ -125,8 +125,14 @@ class LlamaCppCLIEnhancerVision:
                 im.save(p)
                 img_paths.append(p)
 
-            sc = subcommand.strip()
-            sub = [] if sc.lower() in ("", "none") else (["cli"] if sc.lower() == "auto" else sc.split())
+            sc = subcommand.strip().lower()
+            if sc == "auto":
+                is_unified = os.path.splitext(os.path.basename(exe_path))[0].lower() == "llama"
+                sub = ["cli"] if is_unified else []
+            elif sc in ("", "none"):
+                sub = []
+            else:
+                sub = subcommand.strip().split()
             
             cmd = [exe_path] + sub + ["-m", model_path, "--mmproj", mmproj,
                    "-c", str(n_ctx), "-n", str(max_tokens), "-ngl", str(n_gpu_layers),
