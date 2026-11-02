@@ -19,15 +19,21 @@ DEFAULT_MODEL = r"path/to/your/pottokao/Qwen-Image-2.1-PE-T2I-Heretic-GGUF/pe_t2
 
 _env_cache = {}
 
+def _fmt_cmd(cmd):
+    return subprocess.list2cmdline(cmd) if os.name == "nt" else shlex.join(cmd)
 
 def _build_env(setvars_path):
-    """It executes oneAPI's setvars.bat once and captures the environment."""
+    """Runs oneAPI’s setvars.bat once and captures the resulting environment."""
     env = os.environ.copy()
     if not setvars_path:
         return env
     if setvars_path not in _env_cache:
+        if os.name == "nt":
+            args = ["cmd", "/c", "call", setvars_path, ">nul", "2>&1", "&&", "set"]
+        else:
+            args = ["bash", "-c", 'source "$1" >/dev/null 2>&1 && env', "_", setvars_path]
         res = subprocess.run(
-            ["cmd", "/c", "call", setvars_path, ">nul", "2>&1", "&&", "set"],
+            args,
             capture_output=True, text=True, errors="replace",
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
@@ -95,7 +101,7 @@ class LlamaCppCLIEnhancer:
             subcommand="auto", extra_args="", oneapi_setvars="", bypass=False):
         
         if bypass:
-            print("[LlamaCppCLI] Active bypass: the prompt enhancer is not executed.")
+            print("[LlamaCppCLI] Bypass enabled: prompt enhancer skipped.")
             return (prompt, "", "bypass")
             
         if not os.path.isfile(exe_path):
@@ -153,7 +159,7 @@ class LlamaCppCLIEnhancer:
             if extra_args.strip():
                 cmd += [a.strip('"') for a in shlex.split(extra_args, posix=False)]
 
-            print("[LlamaCppCLI] " + subprocess.list2cmdline(cmd))
+            print("[LlamaCppCLI] " + _fmt_cmd(cmd))
             t0 = time.time()
 
             proc = subprocess.run(
@@ -166,7 +172,7 @@ class LlamaCppCLIEnhancer:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"llama.cpp has timed out {timeout_s}s")
+            raise RuntimeError(f"llama.cpp timed out after {timeout_s}s")
         finally:
             for p in tmp_files:
                 try:
@@ -182,7 +188,7 @@ class LlamaCppCLIEnhancer:
                  if re.search(r"perf|eval time|total time|load time|tokens per second", l, re.I)]
         print(f"[LlamaCppCLI] Total time (including model loading): {elapsed:.1f}s")
         if stats:
-            print("[LlamaCppCLI] Statistics llama.cpp:\n  " + "\n  ".join(stats))
+            print("[LlamaCppCLI] llama.cpp statistics:\n  " + "\n  ".join(stats))
         else:
             print("[LlamaCppCLI] No statistics found in stderr.")
 
@@ -191,17 +197,22 @@ class LlamaCppCLIEnhancer:
             raise RuntimeError(f"llama.cpp exited with code {proc.returncode}:\n{tail}")
 
         text = _clean_chat_output(out) if chat_mode else out.strip()
+        text = re.sub(r"\s*\[end of text\]\s*$", "", text).strip()
         think_txt = ""
 
-        if "</think>" in text:
+        if "[End thinking]" in text:
+            think_txt, text = text.split("[End thinking]", 1)
+            think_txt = think_txt.replace("[Start thinking]", "").strip()
+            text = text.strip()
+        elif "</think>" in text:
             think_txt, text = text.split("</think>", 1)
             think_txt = think_txt.replace("<think>", "").strip()
             text = text.strip()
         elif thinking:
-            print("[LlamaCppCLI] WARNING: </think> not found, max_tokens probably too low.")
+            print("[LlamaCppCLI] WARNING: end-of-thinking marker not found, max_tokens probably too low.")
             think_txt, text = text, ""
 
-        return (text, think_txt, subprocess.list2cmdline(cmd))
+        return (text, think_txt, _fmt_cmd(cmd))
 
 
 NODE_CLASS_MAPPINGS = {"LlamaCppCLIEnhancer": LlamaCppCLIEnhancer}

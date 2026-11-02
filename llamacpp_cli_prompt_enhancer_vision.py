@@ -2,10 +2,10 @@
 comfyui-pe-llama-cpp
 --------------------
 ComfyUI node to use an external LLM on llama.cpp for fast prompt enhancement.
-Invokes an external llama.cpp executable (llama.exe / llama-cli / llama-completion) via the command line  - passing a prompt, system prompt, and parameters - and reads the stdout.
+Invokes an external llama.cpp executable (llama.exe / llama-cli / llama-completion) via the command line, passing a prompt, system prompt, and parameters, and reads the stdout.
 
 ComfyUI node: prompt enhancer for image edit.
-Similar to LlamaCppCLIEnhancer, but it also accepts one or more images (IMAGE) and passes them to llama.cpp (using the --mmproj and --image flags) along with the text.
+This node also accepts one or more images (IMAGE) and passes them to llama.cpp (using the --mmproj and --image flags) along with the text.
 It must be placed in the same folder as llamacpp_cli_prompt_enhancer.py (as it reuses its functions).
 """
 import os
@@ -18,8 +18,10 @@ import time
 import numpy as np
 from PIL import Image
 
+DEFAULT_MODEL_VISION = r"path/to/your/pottokao/Qwen-Image-2.1-PE-I2I-Heretic-GGUF/pe_i2i_heretic-Q4_K_M.gguf"
+
 from .llamacpp_cli_prompt_enhancer import (
-    DEFAULT_EXE, DEFAULT_MODEL, _build_env, _clean_chat_output,
+    DEFAULT_EXE, DEFAULT_MODEL_VISION, _build_env, _clean_chat_output,
 )
 
 
@@ -44,7 +46,7 @@ class LlamaCppCLIEnhancerVision:
             "required": {
                 "image": ("IMAGE",),
                 "exe_path": ("STRING", {"default": DEFAULT_EXE}),
-                "model_path": ("STRING", {"default": DEFAULT_MODEL}),
+                "model_path": ("STRING", {"default": DEFAULT_MODEL_VISION}),
                 "mmproj_path": ("STRING", {"default": ""}),
                 "system_prompt": ("STRING", {"multiline": True, "default": ""}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
@@ -61,7 +63,7 @@ class LlamaCppCLIEnhancerVision:
                 "repeat_penalty": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 3.0, "step": 0.01}),
                 "presence_penalty": ("FLOAT", {"default": 1.5, "min": -2.0, "max": 3.0, "step": 0.05}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF}),
-                "flash_attn": (["auto", "on", "off", "non passare"],),
+                "flash_attn": (["auto", "on", "off", "do_not_pass"],),
                 "timeout_s": ("INT", {"default": 900, "min": 10, "max": 7200}),
             },
             "optional": {
@@ -84,7 +86,7 @@ class LlamaCppCLIEnhancerVision:
             oneapi_setvars="", bypass=False):
 
         if bypass:
-            print("[LlamaCppCLI-Vision] Active bypass: the prompt enhancer is not executed.")
+            print("[LlamaCppCLI-Vision] Bypass enabled: prompt enhancer skipped.")
             return (prompt, "", "bypass")
 
         if not os.path.isfile(exe_path):
@@ -125,7 +127,7 @@ class LlamaCppCLIEnhancerVision:
                 img_paths.append(p)
 
             sc = subcommand.strip()
-            sub = [] if sc.lower() in ("", "nessuno") else (["cli"] if sc.lower() == "auto" else sc.split())
+            sub = [] if sc.lower() in ("", "none") else (["cli"] if sc.lower() == "auto" else sc.split())
             
             cmd = [exe_path] + sub + ["-m", model_path, "--mmproj", mmproj,
                    "-c", str(n_ctx), "-n", str(max_tokens), "-ngl", str(n_gpu_layers),
@@ -134,7 +136,7 @@ class LlamaCppCLIEnhancerVision:
                    "--presence-penalty", str(presence_penalty),
                    "-s", str(seed % (2 ** 32)), "--jinja"]
 
-            if flash_attn != "non passare":
+            if flash_attn != "do_not_pass":
                 cmd += ["-fa", flash_attn]
             if not thinking:
                 cmd += ["--chat-template-kwargs", '{"enable_thinking":false}']
@@ -154,7 +156,7 @@ class LlamaCppCLIEnhancerVision:
             if extra_args.strip():
                 cmd += [a.strip('"') for a in shlex.split(extra_args, posix=False)]
 
-            print("[LlamaCppCLI-Vision] " + subprocess.list2cmdline(cmd))
+            print("[LlamaCppCLI-Vision] " + _fmt_cmd(cmd))
             t0 = time.time()
 
             proc = subprocess.run(
@@ -167,7 +169,7 @@ class LlamaCppCLIEnhancerVision:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"llama.cpp has timed out {timeout_s}s")
+            raise RuntimeError(f"llama.cpp timed out after {timeout_s}s")
         finally:
             for p in tmp_files:
                 try:
@@ -183,13 +185,14 @@ class LlamaCppCLIEnhancerVision:
                  if re.search(r"perf|eval time|total time|load time|tokens per second", l, re.I)]
         print(f"[LlamaCppCLI-Vision] Images: {len(img_paths)} | Total time: {elapsed:.1f}s")
         if stats:
-            print("[LlamaCppCLI-Vision] Statistics llama.cpp:\n  " + "\n  ".join(stats))
+            print("[LlamaCppCLI-Vision] llama.cpp statistics:\n  " + "\n  ".join(stats))
 
         if proc.returncode != 0 and not out.strip():
             tail = "\n".join(err.strip().splitlines()[-25:])
             raise RuntimeError(f"llama.cpp exited with code {proc.returncode}:\n{tail}")
 
         text = _clean_chat_output(out)
+        text = re.sub(r"\s*\[end of text\]\s*$", "", text).strip()
         think_txt = ""
 
         if "[End thinking]" in text:
@@ -204,7 +207,7 @@ class LlamaCppCLIEnhancerVision:
             print("[LlamaCppCLI-Vision] WARNING: 'end thinking' marker not found; max_tokens is likely too low.")
             think_txt, text = text, ""
         
-        return (text, think_txt, subprocess.list2cmdline(cmd))
+        return (text, think_txt, _fmt_cmd(cmd))
 
 
 NODE_CLASS_MAPPINGS = {"LlamaCppCLIEnhancerVision": LlamaCppCLIEnhancerVision}

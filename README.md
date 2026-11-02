@@ -1,20 +1,20 @@
 # **comfyui-pe-llama-cpp**
 
 ComfyUI nodes to use an external LLM on llama.cpp for fast prompt enhancement.
-This node invokes an external llama.cpp executable (llama / llama.exe / llama-cli / llama-completion) via the command line, passing a prompt, a system prompt, and parameters, and reads the enhanced prompt from the stdout.
+These nodes invoke an external llama.cpp executable (llama / llama.exe / llama-cli / llama-completion) via the command line, pass a prompt, a system prompt, and parameters, and read the enhanced prompt from its standard output (stdout).
 
-## Motivations
-Many Diffusion Transformer (DiT) Models (for example https://huggingface.co/Comfy-Org/Qwen-Image-2.1 or https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy) use a "prompt enhancer" in their workflows.
-That's an LLM capable of writing an extensive and comprehensive prompt for a text encoder, based on a brief description of an image.
+## Motivation
+Many Diffusion Transformer (DiT) models (for example https://huggingface.co/Comfy-Org/Qwen-Image-2.1 or https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy) use a "prompt enhancer" in their workflows.
+This is an LLM that writes a detailed prompt for the text encoder from a brief description of an image.
 In essence, it translates a novice user's idea into a complete prompt for image generation.
 
-For these models (for example qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors or qwen3.5_9b_flux3_prompt_upsampler_int8_convrot.safetensors), on Intel hardware ComfyUI uses PyTorch-XPU back-end which makes the generation process extremely slow (0.28 tokens/sec). That means up to 50 minutes for a single task of prompt enhancement.
+For these models (for example qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors or qwen3.5_9b_flux3_prompt_upsampler_int8_convrot.safetensors), on Intel hardware ComfyUI uses the PyTorch-XPU back-end, which makes the generation process extremely slow (0.28 tokens/s). That means up to 50 minutes for a single task of prompt-enhancement task.
 
-This node call an external executable of llama.cpp, which build is optimized for hardware, and retrieve the enhanced prompt from standard output.
-On an Intel Arc iGPU (llama.cpp build for SYCL), this brought performance to 11.3 tokens/sec, representing a 40x acceleration.
-The LLM itself is also a parameter. It is therefore possible to use GGUF quantized and/or fine-tuned models, for example https://huggingface.co/pottokao/Qwen-Image-2.1-PE-T2I-Heretic-GGUF .
-## Text to image example
-Node "Llama.cpp CLI Prompt Enhancer" can be used as a drop in replacement for node "Generate text" in subgraph "Text to Image (Qwen Image 2.1)" of https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_t2i.json
+These nodes call an external llama.cpp executable, whose build is optimized for the hardware, and retrieve the enhanced prompt from standard output.
+On an Intel Arc iGPU (llama.cpp build for SYCL), this raised performance to 11.3 tokens/s, a 40x speedup.
+The LLM itself is also a parameter. It is therefore possible to use GGUF quantized and/or fine-tuned models, for example https://huggingface.co/pottokao/Qwen-Image-2.1-PE-T2I-Heretic-GGUF.
+## Text-to-image example
+The "Llama.cpp CLI Prompt Enhancer" node can be used as a drop-in replacement for node "Generate Text" in subgraph "Text to Image (Qwen Image 2.1)" of https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_t2i.json
 
 ![Llama.cpp CLI Prompt Enhancer](assets/llama.cpp-cli-pe-t2i.png)
 
@@ -33,12 +33,12 @@ The image shows a warm, cinematic beach scene at sunset, photographed from a low
 ### Generated image
 ![Text to image with prompt enhancement](assets/qwen_image_2.1_pe_t2i.jpg)
 
-## Image edit example
-Node "Llama.cpp CLI Prompt Enhancer (Image Edit)" can be used as a drop in replacement for node "Generate text" in subgraph "Image Edit (Qwen Image 2.1)" of https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json
+## Image-edit example
+The "Llama.cpp CLI Prompt Enhancer (Image Edit)" node can be used as a drop-in replacement for node "Generate Text" in subgraph "Image Edit (Qwen Image 2.1)" of https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json
 
 ![Llama.cpp CLI Prompt Enhancer for image edit](assets/llama.cpp-cli-pe-i2i.png)
 
-Drop-in replacement for image_qwen_image_2_1_t2i.json
+Drop-in replacement for image_qwen_image_2_1_image_edit.json
 
 ![Drop-in replacement - I2I](assets/image_qwen_image_2_1_i2i.json.replacement.png)
 
@@ -56,15 +56,31 @@ On <image1> (canvas), perform two transformations on the character: first, repla
 ![Image edit with prompt enhancement](assets/qwen_image_2.1_pe_i2i.jpg)
 
 ## Tip
-Of course, the PE model introduces its own suggestions whenever the user's prompt lacks specific information regarding relevant aspects.
-After viewing the image from the first generation, you can copy the enhanced prompt into the box of user prompt, refine it manually, and toggle off the "refine_prompt" switch to prevent any further modifications by the PE model.
+Note that the prompt-enhancer (PE) model adds its own details whenever the user’s prompt does not specify relevant aspects.
+After viewing the image from the first generation, you can copy the enhanced prompt into the user prompt box, refine it manually, and toggle off the "refine_prompt" switch to prevent any further modifications by the PE model.
 
 ## Install
-Open a terminal and move to ComfyUI/custom_nodes/
+Open a terminal and go to ComfyUI/custom_nodes/ folder
 ```
 cd ComfyUI/custom_nodes/
 git clone https://github.com/lgdevel/comfyui-pe-llama-cpp
 ```
 Restart ComfyUI.
+
+## Requirements
+* ComfyUI
+* llama.cpp build for your hardware
+* Qwen-Image-2.1 in ComfyUI: https://docs.comfy.org/tutorials/image/qwen/qwen-image-2-1
+* Quantized PE (prompt enhancer) models, for example:
+  * Text to Image PE: https://huggingface.co/pottokao/Qwen-Image-2.1-PE-T2I-Heretic-GGUF
+  * Image edit PE: https://huggingface.co/pottokao/Qwen-Image-2.1-PE-I2I-Heretic-GGUF
+* Image edit PE requires mmproj (vision) model
+
+## Tested platform
+* Windows 11
+* llama.cpp build "Windows x64 (SYCL)" - https://github.com/ggml-org/llama.cpp/releases
+* ComfyUI portable for Intel GPU
+  * https://docs.comfy.org/installation/comfyui_portable_windows#intel-gpu
+  * https://github.com/Comfy-Org/ComfyUI/releases/latest/download/ComfyUI_windows_portable_intel.7z
 
 Code written with the assistance of Claude (Anthropic).
