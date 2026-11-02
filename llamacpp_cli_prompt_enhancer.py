@@ -2,7 +2,7 @@
 comfyui-pe-llama-cpp
 --------------------
 ComfyUI node to use an external LLM on llama.cpp for fast prompt enhancement.
-Invokes an external llama.cpp executable (llama.exe / llama-cli / llama-completion) via the command line  - passing a prompt, system prompt, and parameters - and reads the stdout.
+Invokes an external llama.cpp executable (llama.exe / llama-cli / llama-completion) via the command line, passing a prompt, system prompt, and parameters, and reads the stdout.
 
 ComfyUI node: prompt enhancer for text to image generation.
 """
@@ -23,7 +23,7 @@ def _fmt_cmd(cmd):
     return subprocess.list2cmdline(cmd) if os.name == "nt" else shlex.join(cmd)
 
 def _build_env(setvars_path):
-    """Runs oneAPI’s setvars.bat once and captures the resulting environment."""
+    """Runs oneAPI's setvars.bat once and captures the resulting environment."""
     env = os.environ.copy()
     if not setvars_path:
         return env
